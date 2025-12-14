@@ -2,9 +2,8 @@ version: '3.7'
 
 services:
   kanban_app:
-    # Build from current context
-    build: .
-    container_name: kanban_app
+    # Swarm mode requires a pre-built image
+    image: ghcr.io/santanelson/kchat:latest
     restart: unless-stopped
 
     # Connect to the existing Chatwoot network
