@@ -39,3 +39,29 @@ export const updateConversationLabels = async (baseUrl, token, accountId, conver
     throw error;
   }
 };
+
+export const fetchLabels = async (baseUrl, token, accountId) => {
+  const client = createClient(baseUrl, token);
+  try {
+    const response = await client.get(`/api/v1/accounts/${accountId}/labels`);
+    return response.data; // { payload: [ { title, color, ... } ] }
+  } catch (error) {
+    console.error("Error fetching labels:", error);
+    throw error;
+  }
+};
+
+export const createLabel = async (baseUrl, token, accountId, labelName, color = "#1f93ff") => {
+  const client = createClient(baseUrl, token);
+  try {
+    const response = await client.post(`/api/v1/accounts/${accountId}/labels`, {
+      title: labelName,
+      color: color,
+      show_on_sidebar: true
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error creating label:", error);
+    throw error;
+  }
+};

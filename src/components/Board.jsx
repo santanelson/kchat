@@ -3,10 +3,14 @@ import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useS
 import { useChatwoot } from '../context/ChatwootContext';
 import Column from './Column';
 import Card from './Card';
+import { ListFilter } from 'lucide-react';
 
 const Board = () => {
-    const { pipelines, conversations, refreshConversations, moveConversation, loading, error } = useChatwoot();
+    const { funnels, activeFunnelId, setActiveFunnelId, conversations, refreshConversations, moveConversation, loading, error } = useChatwoot();
     const [activeId, setActiveId] = React.useState(null);
+
+    const activeFunnel = useMemo(() => funnels.find(f => f.id === activeFunnelId) || funnels[0], [funnels, activeFunnelId]);
+    const stages = useMemo(() => activeFunnel?.stages || [], [activeFunnel]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -19,27 +23,21 @@ const Board = () => {
     // Group conversations by pipeline (Label matching logic)
     const columns = useMemo(() => {
         const groups = {};
-        pipelines.forEach(p => groups[p.id] = []);
-        
-        // Uncategorized bucket? For now assuming if it matches a pipeline label it goes there. 
-        // If matches multiple, first one wins? Or duplicate?
-        // Let's go with: It goes to the first pipeline whose label is in conv.labels.
-        // If none, maybe "No Stage"? 
+        stages.forEach(s => groups[s.id] = []);
         
         conversations.forEach(conv => {
             const convLabels = conv.labels || [];
-            const pipeline = pipelines.find(p => convLabels.includes(p.label));
-            if (pipeline) {
-                groups[pipeline.id].push(conv);
+            // Find the first stage in the ACTIVE funnel that matches one of the labels
+            const matchedStage = stages.find(s => convLabels.includes(s.label));
+            
+            if (matchedStage) {
+                groups[matchedStage.id].push(conv);
             } else {
-                // If we want a generic "Inbox" column, we'd need to add it to pipelines by default or handle here.
-                // For now, only showing conversations that match a pipeline label? 
-                // Or maybe put them in the first column if "Inbox"? 
-                // Let's just create a virtual "Inbox" if user didn't configure? No, sticking to configured pipelines.
+                // If it doesn't match any stage in current funnel, it's hidden (or we could show in an Inbox)
             }
         });
         return groups;
-    }, [pipelines, conversations]);
+    }, [stages, conversations]);
 
     const handleDragStart = (event) => {
         setActiveId(event.active.id);
@@ -53,13 +51,13 @@ const Board = () => {
         const activeConvId = active.id;
         const overStageId = over.id;
         
-        // Find current stage of active conversation
+        // Find current stage of active conversation FROM DATA
         const activeConv = conversations.find(c => c.id.toString() === activeConvId.toString());
         if (!activeConv) return;
         
-        // Find which pipeline it belongs to currently
-        const currentPipeline = pipelines.find(p => (activeConv.labels || []).includes(p.label));
-        const currentStageId = currentPipeline ? currentPipeline.id : null;
+        // Find which stage it belongs to currently IN THIS FUNNEL
+        const currentStage = stages.find(s => (activeConv.labels || []).includes(s.label));
+        const currentStageId = currentStage ? currentStage.id : null;
 
         if (currentStageId !== overStageId) {
             moveConversation(parseInt(activeConvId), currentStageId, overStageId);
@@ -80,23 +78,52 @@ const Board = () => {
          return <div className="p-10 text-center text-red-500">{error}</div>;
     }
 
+    if (!activeFunnel) {
+         return <div className="p-10 text-center text-gray-500">No Pipeline Configured. Go to Settings.</div>;
+    }
+
     return (
-        <DndContext 
-            sensors={sensors} 
-            collisionDetection={closestCorners} 
-            onDragStart={handleDragStart} 
-            onDragEnd={handleDragEnd}
-        >
-            <div className="h-[calc(100vh-60px)] flex overflow-x-auto p-4 gap-4 bg-white">
-                {pipelines.map(stage => (
-                    <Column key={stage.id} stage={stage} conversations={columns[stage.id] || []} />
-                ))}
-            </div>
-            
-            <DragOverlay>
-                {activeConversation ? <Card conversation={activeConversation} /> : null}
-            </DragOverlay>
-        </DndContext>
+        <div className="h-full flex flex-col">
+            {/* Funnel Selector Header */}
+            {funnels.length > 1 && (
+                <div className="px-6 py-2 bg-white border-b border-gray-200 flex items-center gap-2">
+                    <ListFilter size={16} className="text-gray-500" />
+                    <span className="text-sm font-medium text-gray-500 mr-2">Pipeline:</span>
+                    <div className="flex gap-2">
+                        {funnels.map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setActiveFunnelId(f.id)}
+                                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                    activeFunnelId === f.id 
+                                    ? 'bg-chatwoot-100 text-chatwoot-700 font-medium' 
+                                    : 'text-gray-600 hover:bg-gray-100'
+                                }`}
+                            >
+                                {f.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <DndContext 
+                sensors={sensors} 
+                collisionDetection={closestCorners} 
+                onDragStart={handleDragStart} 
+                onDragEnd={handleDragEnd}
+            >
+                <div className="flex-1 flex overflow-x-auto p-4 gap-4 bg-gray-50">
+                    {stages.map(stage => (
+                        <Column key={stage.id} stage={stage} conversations={columns[stage.id] || []} />
+                    ))}
+                </div>
+                
+                <DragOverlay>
+                    {activeConversation ? <Card conversation={activeConversation} /> : null}
+                </DragOverlay>
+            </DndContext>
+        </div>
     );
 };
 
