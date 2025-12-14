@@ -1,0 +1,38 @@
+version: '3.7'
+
+services:
+  kanban_app:
+    # Option 1: Build from Git Repositor in Portainer
+    # build: .
+    # Option 2: Use an image you push (Recommended)
+    image: gabriel/kanban-app:latest # REPLACE with your actual image name
+    container_name: kanban_app
+    restart: unless-stopped
+
+    # Connect to the existing Chatwoot network
+    networks:
+      - DoutNet
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.kanban_app.rule=Host(`kchat.dout.online`)
+        - traefik.http.routers.kanban_app.entrypoints=websecure
+        - traefik.http.routers.kanban_app.tls.certresolver=letsencryptresolver
+        - traefik.http.services.kanban_app.loadbalancer.server.port=80
+        # CORS Headers to allow Chatwoot to access this if embedded
+        - traefik.http.middlewares.kanban-cors.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST
+        - traefik.http.middlewares.kanban-cors.headers.accesscontrolalloworiginlist=*
+        - traefik.http.middlewares.kanban-cors.headers.accesscontrolmaxage=100
+        - traefik.http.middlewares.kanban-cors.headers.addvaryheader=true
+        - traefik.http.routers.kanban_app.middlewares=kanban-cors
+
+networks:
+  DoutNet:
+    external: true
+    name: DoutNet
