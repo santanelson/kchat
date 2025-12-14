@@ -20,16 +20,20 @@ const Settings = () => {
       return;
     }
 
+    let cleanedUrl = localConfig.baseUrl;
     try {
-        // Basic URL validation
-        new URL(localConfig.baseUrl);
+        // Validation and Cleaning
+        const urlObj = new URL(localConfig.baseUrl);
+        cleanedUrl = urlObj.origin; 
     } catch (e) {
         console.error(e);
-        setError('Please enter a valid Base URL (e.g., https://app.chatwoot.com)');
+        setError('Invalid Base URL. Example: https://chat.dout.online');
         return;
     }
 
-    setConfig(localConfig);
+    // Create a new object with the cleaned URL to avoid mutation and ensure update
+    const finalConfig = { ...localConfig, baseUrl: cleanedUrl };
+    setConfig(finalConfig);
     setPipelines(localPipelines);
     setSuccess('Settings saved successfully! Redirecting...');
     
