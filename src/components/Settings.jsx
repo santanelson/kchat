@@ -21,17 +21,27 @@ const Settings = () => {
     }
 
     let cleanedUrl = localConfig.baseUrl;
+
+    // If user enters the real Chatwoot URL, we silently switch to use our internal proxy 
+    // to avoid CORS errors, but keep the conceptual 'baseUrl' for logic.
+    // However, for the context state, we will store the PROXY URL.
     try {
-        // Validation and Cleaning
         const urlObj = new URL(localConfig.baseUrl);
-        cleanedUrl = urlObj.origin; 
+        // If it's the real chatwoot URL, we point to our local proxy path
+        if (urlObj.hostname === 'chat.dout.online') {
+            // We use a relative path so it hits the Nginx on the same domain
+            cleanedUrl = '/chatwoot-api'; 
+        } else {
+             // For other domains (self-hosted elsewhere), we just use origin
+             cleanedUrl = urlObj.origin;
+        }
     } catch (e) {
         console.error(e);
         setError('Invalid Base URL. Example: https://chat.dout.online');
         return;
     }
 
-    // Create a new object with the cleaned URL to avoid mutation and ensure update
+    // Update config
     const finalConfig = { ...localConfig, baseUrl: cleanedUrl };
     setConfig(finalConfig);
     setPipelines(localPipelines);
