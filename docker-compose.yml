@@ -2,10 +2,8 @@ version: '3.7'
 
 services:
   kanban_app:
-    # Option 1: Build from Git Repositor in Portainer
-    # build: .
-    # Option 2: Use an image you push (Recommended)
-    image: gabriel/kanban-app:latest # REPLACE with your actual image name
+    # Build from current context
+    build: .
     container_name: kanban_app
     restart: unless-stopped
 
